@@ -13,13 +13,15 @@ import Foundation
 class Playlist {
     var name: String
     var artworkData: Data?
+    var sortOrder: Int
     
     @Relationship(deleteRule: .cascade)
     var songs: [Song] = []
     
-    init(name: String, artworkData: Data? = nil) {
+    init(name: String, artworkData: Data? = nil, sortOrder: Int = 0) {
         self.name = name
         self.artworkData = artworkData
+        self.sortOrder = sortOrder
     }
     
     var artworkImage: Image {
