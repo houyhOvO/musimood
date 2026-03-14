@@ -8,8 +8,7 @@
 
 import Foundation
 import AVFoundation
-import SwiftUI
-internal import Combine
+import Combine
 
 class AudioPlayer: ObservableObject {
     static let shared = AudioPlayer()
