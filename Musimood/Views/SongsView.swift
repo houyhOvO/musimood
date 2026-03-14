@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 
 struct SongsView: View {
+    
     var playlist: Playlist
     
     @Environment(\.modelContext) private var context
@@ -21,63 +22,59 @@ struct SongsView: View {
     
     @State private var showingAudioImporter = false
     @State private var importedAudioURL: URL? = nil
-    @ObservedObject private var audioPlayer = AudioPlayer.shared
     
-    @Query(sort: \Song.title, order: .forward) private var allSongs: [Song]
+    @Query(sort: \Song.title) private var allSongs: [Song]
+    
+    private var songsInPlaylist: [Song] {
+        allSongs.filter { $0.playlist == playlist }
+    }
     
     var body: some View {
         List {
-            ForEach(allSongs.filter { $0.playlist == playlist }) { song in
-                VStack(alignment: .leading) {
-                    Text(song.title)
-                        .font(.headline)
-                    
-                    Text(song.artist)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    if let url = song.audioFileURL {
-                        audioPlayer.play(url: url)
+            ForEach(songsInPlaylist) { song in
+                SongRow(song: song)
+                    .swipeActions(edge: .trailing) {
+                        
+                        Button(role: .destructive) {
+                            deleteSong(song)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        
+                        Button {
+                            songBeingEdited = song
+                            editedTitle = song.title
+                            editedArtist = song.artist
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(.blue)
                     }
-                }
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) {
-                        context.delete(song)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
-                    }
-                    
-                    Button {
-                        songBeingEdited = song
-                        editedTitle = song.title
-                        editedArtist = song.artist
-                    } label: {
-                        Label("Edit", systemImage: "pencil")
-                    }
-                    .tint(.blue)
-                }
             }
-            .onDelete(perform: deleteSong)
+            .onDelete(perform: deleteSongAtOffsets)
             .onMove(perform: moveSong)
         }
         .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
         .navigationTitle(playlist.name)
         
         .toolbar {
+            
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     withAnimation(.spring()) {
                         isEditing.toggle()
                     }
                 } label: {
-                    Label(isEditing ? "Done" : "Edit",
-                          systemImage: isEditing ? "checkmark" : "pencil")
+                    Label(
+                        isEditing ? "Done" : "Edit",
+                        systemImage: isEditing ? "checkmark" : "pencil"
+                    )
                 }
             }
+            
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    
                     Button {
                         showingAudioImporter = true
                     } label: {
@@ -90,6 +87,9 @@ struct SongsView: View {
                 }
             }
         }
+        
+        // MARK: Edit Song Sheet
+        
         .sheet(item: $songBeingEdited) { song in
             SongEditSheet(
                 title: $editedTitle,
@@ -101,27 +101,71 @@ struct SongsView: View {
                 }
             )
         }
+        
+        // MARK: Import Audio
+        
         .sheet(isPresented: $showingAudioImporter) {
             AudioImporter(selectedURL: $importedAudioURL)
         }
+        
         .onChange(of: importedAudioURL) { oldURL, newURL in
             guard let url = newURL else { return }
+            
             let newSong = Song(
                 title: url.deletingPathExtension().lastPathComponent,
                 artist: "Unknown",
                 playlist: playlist,
                 audioFileName: url.lastPathComponent
             )
+            
             context.insert(newSong)
         }
     }
-    
-    private func deleteSong(at offsets: IndexSet) {
-        let songsInPlaylist = allSongs.filter { $0.playlist == playlist }
+}
 
+// MARK: - Song Row
+
+struct SongRow: View {
+    
+    var song: Song
+    
+    @ObservedObject private var audioPlayer = AudioPlayer.shared
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            
+            Text(song.title)
+                .font(.headline)
+            
+            Text(song.artist)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            audioPlayer.play(song: song)
+        }
+    }
+}
+
+// MARK: - Delete / Move
+
+extension SongsView {
+    
+    private func deleteSong(_ song: Song) {
+        
+        if let url = song.audioFileURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+        
+        context.delete(song)
+    }
+    
+    private func deleteSongAtOffsets(_ offsets: IndexSet) {
+        
         for index in offsets {
             let song = songsInPlaylist[index]
-            context.delete(song)
+            deleteSong(song)
         }
     }
     
