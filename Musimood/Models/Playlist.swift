@@ -12,6 +12,9 @@ import Foundation
 class Playlist {
     var name: String
     
+    @Relationship(deleteRule: .cascade)
+    var songs: [Song] = []
+    
     init(name: String) {
         self.name = name
     }

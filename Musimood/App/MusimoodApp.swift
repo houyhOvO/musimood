@@ -14,6 +14,6 @@ struct MusimoodApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: Playlist.self)
+        .modelContainer(for: [Playlist.self, Song.self])
     }
 }
