@@ -47,15 +47,20 @@ struct SongEditSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button {
                         onSave()
                         dismiss()
+                    } label: {
+                        Image(systemName: "checkmark")
                     }
+                    .buttonStyle(.glassProminent)
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty ||
                               artist.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
