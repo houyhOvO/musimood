@@ -16,6 +16,10 @@ struct SongsView: View {
     
     @State private var isEditing = false
     
+    @State private var songBeingEdited: Song? = nil
+    @State private var editedTitle: String = ""
+    @State private var editedArtist: String = ""
+    
     var body: some View {
         List {
             ForEach(playlist.songs) { song in
@@ -26,6 +30,22 @@ struct SongsView: View {
                     Text(song.artist)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        context.delete(song)
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+
+                    Button {
+                        songBeingEdited = song
+                        editedTitle = song.title
+                        editedArtist = song.artist
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    .tint(.blue)
                 }
             }
             .onDelete(perform: deleteSong)
@@ -58,6 +78,17 @@ struct SongsView: View {
                         .font(.title2)
                 }
             }
+        }
+        .sheet(item: $songBeingEdited) { song in
+            SongEditSheet(
+                title: $editedTitle,
+                artist: $editedArtist,
+                sheetTitle: "Edit Song",
+                onSave: {
+                    song.title = editedTitle
+                    song.artist = editedArtist
+                }
+            )
         }
     }
     
