@@ -16,7 +16,7 @@ class AudioPlayer: ObservableObject {
     static let shared = AudioPlayer()
     
     @Published var isPlaying = false
-    @Published var currentSong: Song? = nil
+    @Published var currentSong: Song?
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
     
@@ -25,6 +25,7 @@ class AudioPlayer: ObservableObject {
     
     private init() {
         setupAudioSession()
+        setupRemoteCommands()
     }
     
     // MARK: Audio Session
@@ -39,9 +40,37 @@ class AudioPlayer: ObservableObject {
         }
     }
     
+    // MARK: Remote Command
+    
+    private func setupRemoteCommands() {
+        
+        let commandCenter = MPRemoteCommandCenter.shared()
+        
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.resume()
+            return .success
+        }
+        
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            
+            self?.seek(to: event.positionTime)
+            return .success
+        }
+    }
+    
     // MARK: Play
     
     func play(song: Song) {
+        
         guard let url = song.audioFileURL else { return }
         
         do {
@@ -54,7 +83,7 @@ class AudioPlayer: ObservableObject {
             duration = player?.duration ?? 0
             
             startTimer()
-            updateNowPlaying(song: song)
+            updateNowPlaying()
             
         } catch {
             print("Play error:", error)
@@ -66,6 +95,7 @@ class AudioPlayer: ObservableObject {
     func pause() {
         player?.pause()
         isPlaying = false
+        updateNowPlaying()
     }
     
     // MARK: Resume
@@ -73,6 +103,7 @@ class AudioPlayer: ObservableObject {
     func resume() {
         player?.play()
         isPlaying = true
+        updateNowPlaying()
     }
     
     // MARK: Stop
@@ -96,6 +127,7 @@ class AudioPlayer: ObservableObject {
     func seek(to time: TimeInterval) {
         player?.currentTime = time
         currentTime = time
+        updateNowPlaying()
     }
     
     // MARK: Timer
@@ -110,22 +142,24 @@ class AudioPlayer: ObservableObject {
             
             DispatchQueue.main.async {
                 self.currentTime = player.currentTime
+                self.updateNowPlaying()
             }
         }
     }
     
-    // MARK: Lock Screen
+    // MARK: Lock Screen Info
     
-    private func updateNowPlaying(song: Song) {
+    private func updateNowPlaying() {
+        
+        guard let song = currentSong else { return }
         
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
-            MPMediaItemPropertyArtist: song.artist
+            MPMediaItemPropertyArtist: song.artist,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
+            MPMediaItemPropertyPlaybackDuration: duration,
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1 : 0
         ]
-        
-        if let duration = player?.duration {
-            info[MPMediaItemPropertyPlaybackDuration] = duration
-        }
         
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
