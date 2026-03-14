@@ -13,7 +13,7 @@ struct AudioImporter: UIViewControllerRepresentable {
     @Binding var selectedURL: URL?
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let types: [UTType] = [.audio]
+        let types: [UTType] = [UTType.mp3, UTType.mpeg4Audio, UTType.wav]
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: true)
         picker.delegate = context.coordinator
         return picker
@@ -32,6 +32,12 @@ struct AudioImporter: UIViewControllerRepresentable {
         func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
             guard let url = urls.first else { return }
 
+            // Support mp3, m4a and wav
+            let allowedExtensions = ["mp3", "m4a", "wav"]
+            guard allowedExtensions.contains(url.pathExtension.lowercased()) else {
+                print("Unsupported audio file type:", url.pathExtension)
+                return
+            }
             let filename = url.lastPathComponent
             let destURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent(filename)
@@ -42,6 +48,7 @@ struct AudioImporter: UIViewControllerRepresentable {
                 }
                 try FileManager.default.copyItem(at: url, to: destURL)
                 parent.selectedURL = destURL
+                print("Imported audio to:", destURL)
             } catch {
                 print("Failed to copy audio file: \(error.localizedDescription)")
             }

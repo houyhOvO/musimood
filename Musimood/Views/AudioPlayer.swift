@@ -71,7 +71,17 @@ class AudioPlayer: ObservableObject {
     
     func play(song: Song) {
         
-        guard let url = song.audioFileURL else { return }
+//        guard let url = song.audioFileURL else { return }
+        guard let url = song.audioFileURL, FileManager.default.fileExists(atPath: url.path) else {
+            print("Audio file not found:", song.audioFileURL?.absoluteString ?? "nil")
+            return
+        }
+        
+        let allowedExtensions = ["mp3", "m4a", "wav"]
+        guard allowedExtensions.contains(url.pathExtension.lowercased()) else {
+            print("Unsupported audio file format:", url.pathExtension)
+            return
+        }
         
         do {
             player = try AVAudioPlayer(contentsOf: url)
@@ -86,7 +96,7 @@ class AudioPlayer: ObservableObject {
             updateNowPlaying()
             
         } catch {
-            print("Play error:", error)
+            print("Play error:", error.localizedDescription)
         }
     }
     
@@ -153,7 +163,7 @@ class AudioPlayer: ObservableObject {
         
         guard let song = currentSong else { return }
         
-        var info: [String: Any] = [
+        let info: [String: Any] = [
             MPMediaItemPropertyTitle: song.title,
             MPMediaItemPropertyArtist: song.artist,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
