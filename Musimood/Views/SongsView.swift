@@ -117,8 +117,11 @@ struct SongsView: View {
     }
     
     private func deleteSong(at offsets: IndexSet) {
+        let songsInPlaylist = allSongs.filter { $0.playlist == playlist }
+
         for index in offsets {
-            context.delete(playlist.songs[index])
+            let song = songsInPlaylist[index]
+            context.delete(song)
         }
     }
     
