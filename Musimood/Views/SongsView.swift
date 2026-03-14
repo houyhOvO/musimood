@@ -30,7 +30,7 @@ struct SongsView: View {
     }
     
     var body: some View {
-        VStack (spacing: 0){
+//        VStack (spacing: 0){
             List {
                 ForEach(songsInPlaylist) { song in
                     SongRow(song: song)
@@ -54,8 +54,8 @@ struct SongsView: View {
                 .onDelete(perform: deleteSongAtOffsets)
                 .onMove(perform: moveSong)
             }
-            PlayerBar()
-        }
+//            PlayerBar()
+//        }
         .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
         .navigationTitle(playlist.name)
         
@@ -177,58 +177,51 @@ extension SongsView {
 }
 
 struct PlayerBar: View {
-    
-    @ObservedObject var player = AudioPlayer.shared
-    
-    var body: some View {
-        if let song = player.currentSong {
-            VStack(spacing: 6) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(song.title)
-                            .font(.headline)
-                        Text(song.artist)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
 
-                    Spacer()
-                    
-                    Button {
-                        if player.isPlaying {
-                            player.pause()
-                        } else {
-                            player.resume()
-                        }
-                    } label: {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.title2)
+    @ObservedObject var player = AudioPlayer.shared
+    @State private var showFullPlayer = false
+
+    var body: some View {
+
+        if let song = player.currentSong {
+
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(song.title)
+                        .font(.headline)
+
+                    Text(song.artist)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    if player.isPlaying {
+                        player.pause()
+                    } else {
+                        player.resume()
                     }
+                } label: {
+                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.title2)
                 }
-                Slider(
-                    value: Binding(
-                        get: { player.currentTime },
-                        set: { player.seek(to: $0) }
-                    ),
-                    in: 0...max(player.duration, 1)
-                )
-                
-                HStack {
-                    Text(formatTime(player.currentTime))
-                        .font(.caption2)
-                    Spacer()
-                    Text(formatTime(player.duration))
-                        .font(.caption2)
-                }
+
             }
-            .padding()
-            .background(.ultraThinMaterial)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(.clear.interactive())
+            .clipShape(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+            )
+            .padding(.horizontal)
+            .onTapGesture {
+                showFullPlayer = true
+            }
+            .fullScreenCover(isPresented: $showFullPlayer) {
+                FullPlayerView()
+            }
         }
-    }
-    
-    func formatTime(_ time: TimeInterval) -> String {
-        let m = Int(time) / 60
-        let s = Int(time) % 60
-        return String(format: "%d:%02d", m, s)
     }
 }
