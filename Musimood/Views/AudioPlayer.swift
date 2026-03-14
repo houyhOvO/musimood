@@ -10,81 +10,123 @@ import Foundation
 import AVFoundation
 import MediaPlayer
 import Combine
-import SwiftUI
-
 
 class AudioPlayer: ObservableObject {
+    
     static let shared = AudioPlayer()
     
     @Published var isPlaying = false
     @Published var currentSong: Song? = nil
+    @Published var currentTime: TimeInterval = 0
+    @Published var duration: TimeInterval = 0
     
     private var player: AVAudioPlayer?
+    private var timer: Timer?
     
     private init() {
         setupAudioSession()
     }
     
+    // MARK: Audio Session
+    
     private func setupAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [])
+            try session.setCategory(.playback, mode: .default)
             try session.setActive(true)
         } catch {
-            print("Audio session setup failed: \(error.localizedDescription)")
+            print("AudioSession error:", error)
         }
     }
+    
+    // MARK: Play
     
     func play(song: Song) {
-        guard let url = song.audioFileURL else {
-            print("Audio file URL not found for song: \(song.title)")
-            return
-        }
-        currentSong = song
-        play(url: url, title: song.title, artist: song.artist)
-    }
-    
-    private func play(url: URL, title: String, artist: String) {
-        stop()
+        guard let url = song.audioFileURL else { return }
+        
         do {
             player = try AVAudioPlayer(contentsOf: url)
             player?.prepareToPlay()
             player?.play()
+            
+            currentSong = song
             isPlaying = true
-            updateNowPlayingInfo(title: title, artist: artist)
+            duration = player?.duration ?? 0
+            
+            startTimer()
+            updateNowPlaying(song: song)
+            
         } catch {
-            print("Failed to play audio: \(error.localizedDescription)")
+            print("Play error:", error)
         }
     }
+    
+    // MARK: Pause
+    
+    func pause() {
+        player?.pause()
+        isPlaying = false
+    }
+    
+    // MARK: Resume
+    
+    func resume() {
+        player?.play()
+        isPlaying = true
+    }
+    
+    // MARK: Stop
     
     func stop() {
         player?.stop()
         player = nil
+        
+        timer?.invalidate()
+        timer = nil
+        
         isPlaying = false
-        currentSong = nil
+        currentTime = 0
+        duration = 0
+        
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     
-    private func updateNowPlayingInfo(title: String, artist: String) {
-        var nowPlayingInfo: [String: Any] = [
-            MPMediaItemPropertyTitle: title,
-            MPMediaItemPropertyArtist: artist
+    // MARK: Seek
+    
+    func seek(to time: TimeInterval) {
+        player?.currentTime = time
+        currentTime = time
+    }
+    
+    // MARK: Timer
+    
+    private func startTimer() {
+        
+        timer?.invalidate()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            
+            guard let player = self.player else { return }
+            
+            DispatchQueue.main.async {
+                self.currentTime = player.currentTime
+            }
+        }
+    }
+    
+    // MARK: Lock Screen
+    
+    private func updateNowPlaying(song: Song) {
+        
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: song.title,
+            MPMediaItemPropertyArtist: song.artist
         ]
         
-        if let artworkURL = currentSong?.artworkFileURL,
-           let image = UIImage(contentsOfFile: artworkURL.path) {
-            let artwork = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
-            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+        if let duration = player?.duration {
+            info[MPMediaItemPropertyPlaybackDuration] = duration
         }
         
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
-    }
-}
-
-extension Song {
-    var artworkFileURL: URL? {
-        guard let artworkName = audioFileName else { return nil }
-        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-            .first?.appendingPathComponent(artworkName)
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }

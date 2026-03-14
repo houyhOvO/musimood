@@ -30,29 +30,31 @@ struct SongsView: View {
     }
     
     var body: some View {
-        List {
-            ForEach(songsInPlaylist) { song in
-                SongRow(song: song)
-                    .swipeActions(edge: .trailing) {
-                        
-                        Button(role: .destructive) {
-                            deleteSong(song)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+        VStack (spacing: 0){
+            List {
+                ForEach(songsInPlaylist) { song in
+                    SongRow(song: song)
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                deleteSong(song)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            
+                            Button {
+                                songBeingEdited = song
+                                editedTitle = song.title
+                                editedArtist = song.artist
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(.blue)
                         }
-                        
-                        Button {
-                            songBeingEdited = song
-                            editedTitle = song.title
-                            editedArtist = song.artist
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        .tint(.blue)
-                    }
+                }
+                .onDelete(perform: deleteSongAtOffsets)
+                .onMove(perform: moveSong)
             }
-            .onDelete(perform: deleteSongAtOffsets)
-            .onMove(perform: moveSong)
+            PlayerBar()
         }
         .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
         .navigationTitle(playlist.name)
@@ -171,5 +173,62 @@ extension SongsView {
     
     private func moveSong(from source: IndexSet, to destination: Int) {
         playlist.songs.move(fromOffsets: source, toOffset: destination)
+    }
+}
+
+struct PlayerBar: View {
+    
+    @ObservedObject var player = AudioPlayer.shared
+    
+    var body: some View {
+        if let song = player.currentSong {
+            VStack(spacing: 6) {
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(song.title)
+                            .font(.headline)
+                        Text(song.artist)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+                    
+                    Button {
+                        if player.isPlaying {
+                            player.pause()
+                        } else {
+                            player.resume()
+                        }
+                    } label: {
+                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                            .font(.title2)
+                    }
+                }
+                Slider(
+                    value: Binding(
+                        get: { player.currentTime },
+                        set: { player.seek(to: $0) }
+                    ),
+                    in: 0...max(player.duration, 1)
+                )
+                
+                HStack {
+                    Text(formatTime(player.currentTime))
+                        .font(.caption2)
+                    Spacer()
+                    Text(formatTime(player.duration))
+                        .font(.caption2)
+                }
+            }
+            .padding()
+            .background(.ultraThinMaterial)
+        }
+    }
+    
+    func formatTime(_ time: TimeInterval) -> String {
+        let m = Int(time) / 60
+        let s = Int(time) % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
