@@ -10,13 +10,12 @@ import SwiftData
 
 
 struct PlaylistsView: View {
-    @Query private var playlists: [Playlist]
+    @Query(sort: \Playlist.sortOrder) private var playlists: [Playlist]
     @Environment(\.modelContext) private var context
     
     @State private var isShowingAddSheet = false
     @State private var newPlaylistTitle = ""
     @State private var isEditing = false
-    @Environment(\.dismiss) private var dismiss
     
     @State private var playlistBeingRenamed: Playlist? = nil
     @State private var renamedTitle: String = ""
@@ -81,7 +80,8 @@ struct PlaylistsView: View {
             PlaylistSheet(
                 title: $newPlaylistTitle,
                 onSave: { data in
-                    let playlist = Playlist(name: newPlaylistTitle, artworkData: data)
+                    let nextSortOrder = (playlists.map(\.sortOrder).max() ?? -1) + 1
+                    let playlist = Playlist(name: newPlaylistTitle, artworkData: data, sortOrder: nextSortOrder)
                     context.insert(playlist)
                     newPlaylistTitle = ""
                 }
@@ -111,16 +111,9 @@ struct PlaylistsView: View {
     private func movePlaylist(from source: IndexSet, to destination: Int) {
         var reordered = playlists
         reordered.move(fromOffsets: source, toOffset: destination)
-    }
-    
-    private func showingRenameSheet(for playlist: Playlist) {
-        playlistBeingRenamed = playlist
-        renamedTitle = playlist.name
-    }
-    
-    private func renamePlaylist() {
-        guard let playlist = playlistBeingRenamed else { return }
-        playlist.name = renamedTitle
-        playlistBeingRenamed = nil
+        
+        for (index, playlist) in reordered.enumerated() {
+            playlist.sortOrder = index
+        }
     }
 }
