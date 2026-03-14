@@ -22,7 +22,15 @@ struct PlaylistsView: View {
     var body: some View {
         List {
             ForEach(playlists) { playlist in
-                Text(playlist.name)
+                NavigationLink {
+                    SongsView(playlist: playlist)
+                } label: {
+                    HStack {
+                        Image(systemName: "music.note.list")
+                            .foregroundStyle(.secondary)
+                        Text(playlist.name)
+                    }
+                }
             }
             .onDelete(perform: deletePlaylist)
             .onMove(perform: movePlaylist)
