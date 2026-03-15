@@ -158,6 +158,7 @@ extension SongsView {
         
         if let url = song.audioFileURL {
             try? FileManager.default.removeItem(at: url)
+            print("The song at ", url, "has been removed")
         }
         
         context.delete(song)
